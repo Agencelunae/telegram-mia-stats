@@ -10,7 +10,7 @@ déclenchement de la journée ne fait rien.
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import gspread
@@ -63,7 +63,7 @@ def main():
     variation = member_count - previous_count if previous_count is not None else ""
 
     # 4. Ajouter la nouvelle ligne
-    date_str = paris_now.strftime("%Y-%m-%d")
+    date_str = (paris_now - timedelta(days=1)).strftime("%Y-%m-%d")
     sheet.append_row([date_str, member_count, variation])
     print(f"Ligne ajoutée : {date_str} | {member_count} abonnés | variation {variation}")
 
