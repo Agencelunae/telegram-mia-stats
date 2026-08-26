@@ -6,14 +6,14 @@ pour l'heure d'été, une fois pour l'heure d'hiver) car GitHub Actions ne gère
 que l'UTC. GitHub retarde par ailleurs parfois l'exécution des tâches
 planifiées de façon imprévisible (jusqu'à plusieurs heures sur les dépôts
 gratuits). Le script ne se base donc PAS sur une heure exacte : il vérifie
-simplement si une ligne existe déjà pour la date du jour dans le Sheet. Si
+simplement si une ligne existe déjà pour la date cible dans le Sheet. Si
 oui, il ne fait rien (évite les doublons) ; sinon, il écrit la ligne — quel
 que soit le moment réel où GitHub a fini par lancer le job.
 """
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import gspread
@@ -23,7 +23,11 @@ from google.oauth2.service_account import Credentials
 
 def main():
     paris_now = datetime.now(ZoneInfo("Europe/Paris"))
-    today_str = paris_now.strftime("%Y-%m-%d")
+    # La valeur récupérée le matin reflète en réalité les données de la
+    # veille (convention établie le 22/08/2026, commit a5e853b) : on écrit
+    # donc la ligne avec la date J-1, pas la date du jour d'exécution.
+    target_date = paris_now.date() - timedelta(days=1)
+    today_str = target_date.strftime("%Y-%m-%d")
 
     bot_token = os.environ["TELEGRAM_BOT_TOKEN"]
     chat_id = os.environ["TELEGRAM_CHAT_ID"]
