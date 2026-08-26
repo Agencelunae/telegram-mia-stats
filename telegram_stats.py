@@ -3,39 +3,48 @@ Script de suivi quotidien du nombre d'abonnés d'un canal Telegram.
 
 Le workflow GitHub Actions associé se déclenche deux fois par jour (une fois
 pour l'heure d'été, une fois pour l'heure d'hiver) car GitHub Actions ne gère
-que l'UTC. Ce script vérifie donc lui-même l'heure locale à Paris et ne fait
-quelque chose que si on est bien à 7h du matin heure française — l'autre
-déclenchement de la journée ne fait rien.
+que l'UTC. GitHub retarde par ailleurs parfois l'exécution des tâches
+planifiées de façon imprévisible (jusqu'à plusieurs heures sur les dépôts
+gratuits). Le script ne se base donc PAS sur une heure exacte : il vérifie
+simplement si une ligne existe déjà pour la date du jour dans le Sheet. Si
+oui, il ne fait rien (évite les doublons) ; sinon, il écrit la ligne — quel
+que soit le moment réel où GitHub a fini par lancer le job.
 """
 
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import gspread
 import requests
 from google.oauth2.service_account import Credentials
 
-TARGET_HOUR_PARIS = 7  # heure locale à laquelle on veut effectivement agir
-
 
 def main():
     paris_now = datetime.now(ZoneInfo("Europe/Paris"))
-
-    if paris_now.hour != TARGET_HOUR_PARIS:
-        print(
-            f"Heure locale Paris actuelle = {paris_now.hour}h "
-            f"(on n'agit qu'à {TARGET_HOUR_PARIS}h). Sortie sans action."
-        )
-        return
+    today_str = paris_now.strftime("%Y-%m-%d")
 
     bot_token = os.environ["TELEGRAM_BOT_TOKEN"]
     chat_id = os.environ["TELEGRAM_CHAT_ID"]
     sheet_id = os.environ["GOOGLE_SHEET_ID"]
     creds_json = os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"]
 
-    # 1. Récupérer le nombre d'abonnés via l'API Telegram
+    # 1. Se connecter au Google Sheet et vérifier si le jour est déjà traité
+    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+    creds_dict = json.loads(creds_json)
+    creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+    gc = gspread.authorize(creds)
+    sheet = gc.open_by_key(sheet_id).sheet1
+
+    values = sheet.get_all_values()
+    last_date = values[-1][0] if len(values) > 1 else None
+
+    if last_date == today_str:
+        print(f"Une ligne existe déjà pour {today_str}. Sortie sans action.")
+        return
+
+    # 2. Récupérer le nombre d'abonnés via l'API Telegram
     url = f"https://api.telegram.org/bot{bot_token}/getChatMemberCount"
     resp = requests.get(url, params={"chat_id": chat_id}, timeout=15)
     resp.raise_for_status()
@@ -44,15 +53,7 @@ def main():
         raise RuntimeError(f"Erreur API Telegram : {data}")
     member_count = data["result"]
 
-    # 2. Se connecter au Google Sheet
-    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    creds_dict = json.loads(creds_json)
-    creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-    gc = gspread.authorize(creds)
-    sheet = gc.open_by_key(sheet_id).sheet1
-
     # 3. Calculer la variation par rapport à la veille
-    values = sheet.get_all_values()
     previous_count = None
     if len(values) > 1:  # il y a au moins une ligne de données sous l'en-tête
         try:
@@ -63,9 +64,8 @@ def main():
     variation = member_count - previous_count if previous_count is not None else ""
 
     # 4. Ajouter la nouvelle ligne
-    date_str = (paris_now - timedelta(days=1)).strftime("%Y-%m-%d")
-    sheet.append_row([date_str, member_count, variation])
-    print(f"Ligne ajoutée : {date_str} | {member_count} abonnés | variation {variation}")
+    sheet.append_row([today_str, member_count, variation])
+    print(f"Ligne ajoutée : {today_str} | {member_count} abonnés | variation {variation}")
 
 
 if __name__ == "__main__":
