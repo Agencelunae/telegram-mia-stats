@@ -2,12 +2,16 @@ name: Suivi abonnés Telegram
 
 on:
   schedule:
-    # Deux horaires car GitHub Actions ne connaît que l'UTC.
-    # Le script vérifie lui-même l'heure locale à Paris et ne fait rien
-    # lors du déclenchement en trop (voir telegram_stats.py).
-    - cron: '0 5 * * *'   # 7h heure française en été (CEST = UTC+2)
-    - cron: '0 6 * * *'   # 7h heure française en hiver (CET = UTC+1)
-  workflow_dispatch:
+    # Horaires volontairement décalés des heures rondes (5h00, 6h00 UTC)
+    # car ce sont les créneaux les plus demandés sur GitHub Actions, donc
+    # les plus sujets à retard ou saut d'exécution en cas de forte charge.
+    # Trois créneaux dans la journée = filet de sécurité ; grâce à la
+    # vérification "date déjà présente ?" dans le script, un seul écrit
+    # réellement une ligne, les autres ne font rien si c'est déjà fait.
+    - cron: '17 5 * * *'   # ~7h17 heure française en été (CEST = UTC+2)
+    - cron: '17 6 * * *'   # ~7h17 heure française en hiver (CET = UTC+1)
+    - cron: '43 10 * * *'  # filet de sécurité en fin de matinée (~12h43/11h43)
+  workflow_dispatch:        # permet aussi de le lancer manuellement depuis GitHub
 
 jobs:
   update-stats:
