@@ -8,6 +8,8 @@ on:
     # Trois créneaux dans la journée = filet de sécurité ; grâce à la
     # vérification "date déjà présente ?" dans le script, un seul écrit
     # réellement une ligne, les autres ne font rien si c'est déjà fait.
+    # Resynchronisation manuelle le 28/08/2026 suite à des incidents
+    # GitHub Actions documentés fin août 2026 sur le déclenchement cron.
     - cron: '17 5 * * *'   # ~7h17 heure française en été (CEST = UTC+2)
     - cron: '17 6 * * *'   # ~7h17 heure française en hiver (CET = UTC+1)
     - cron: '43 10 * * *'  # filet de sécurité en fin de matinée (~12h43/11h43)
