@@ -2,17 +2,15 @@ name: Suivi abonnés Telegram
 
 on:
   schedule:
-    # Horaires volontairement décalés des heures rondes (5h00, 6h00 UTC)
-    # car ce sont les créneaux les plus demandés sur GitHub Actions, donc
-    # les plus sujets à retard ou saut d'exécution en cas de forte charge.
-    # Trois créneaux dans la journée = filet de sécurité ; grâce à la
-    # vérification "date déjà présente ?" dans le script, un seul écrit
-    # réellement une ligne, les autres ne font rien si c'est déjà fait.
-    # Resynchronisation manuelle le 28/08/2026 suite à des incidents
-    # GitHub Actions documentés fin août 2026 sur le déclenchement cron.
-    - cron: '17 5 * * *'   # ~7h17 heure française en été (CEST = UTC+2)
-    - cron: '17 6 * * *'   # ~7h17 heure française en hiver (CET = UTC+1)
-    - cron: '43 10 * * *'  # filet de sécurité en fin de matinée (~12h43/11h43)
+    # Au lieu d'un seul horaire fragile, on retente TOUTES LES HEURES entre
+    # 5h23 et 14h23 UTC (~7h23-16h23 heure française en été, 6h23-15h23 en
+    # hiver). GitHub Actions retarde ou saute parfois des exécutions
+    # planifiées (incidents documentés fin août 2026) ; multiplier les
+    # tentatives maximise les chances qu'au moins une passe dans la
+    # journée. Le script vérifie si la ligne du jour existe déjà avant
+    # d'écrire, donc AUCUN RISQUE DE DOUBLON : dès qu'une tentative réussit,
+    # toutes les suivantes de la journée ne font rien.
+    - cron: '23 5-14 * * *'
   workflow_dispatch:        # permet aussi de le lancer manuellement depuis GitHub
 
 jobs:
